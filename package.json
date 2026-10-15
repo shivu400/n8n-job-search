@@ -1,0 +1,20 @@
+{
+  "name": "nagendra-job-search-n8n",
+  "version": "1.0.0",
+  "description": "Safe, 100% Free Automated Job Search & AI Scoring System for Nagendra M.P",
+  "scripts": {
+    "start": "npx n8n",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f"
+  },
+  "keywords": [
+    "n8n",
+    "automation",
+    "job-search",
+    "gemini",
+    "devops"
+  ],
+  "author": "Nagendra M.P",
+  "license": "MIT"
+}

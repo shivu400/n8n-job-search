@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Job Digest Preview • Nagendra M.P</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --surface: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --purple: #8b5cf6;
+      --border: #e2e8f0;
+      --radius: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: #f1f5f9;
+      color: var(--text-main);
+      padding: 0 0 60px 0;
+      line-height: 1.5;
+    }
+
+    /* Top Command Header */
+    .top-toolbar {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 14px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid #334155;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: -0.3px;
+    }
+
+    .status-pill {
+      background: #10b98125;
+      color: #34d399;
+      border: 1px solid #059669;
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      font-weight: 600;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 8px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+    }
+
+    .btn-primary {
+      background: #2563eb;
+      color: #ffffff;
+    }
+
+    .btn-primary:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: #334155;
+      color: #f8fafc;
+    }
+
+    .btn-secondary:hover {
+      background: #475569;
+    }
+
+    /* Email Digest Container */
+    .container {
+      max-width: 720px;
+      margin: 32px auto 0 auto;
+      padding: 0 16px;
+    }
+
+    /* Banner */
+    .header-banner {
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #38bdf8 100%);
+      color: #ffffff;
+      border-radius: var(--radius);
+      padding: 28px 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 20px -4px rgba(37, 99, 235, 0.25);
+    }
+
+    .header-banner h1 {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+    }
+
+    .header-banner p {
+      font-size: 14px;
+      opacity: 0.92;
+      line-height: 1.4;
+    }
+
+    /* Candidate Spec Badge */
+    .candidate-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .meta-chip {
+      background: rgba(255, 255, 255, 0.18);
+      backdrop-filter: blur(8px);
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    /* Job Card */
+    .job-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .job-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.06);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 14px;
+      gap: 12px;
+    }
+
+    .job-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .badge-remote {
+      background: #e0e7ff;
+      color: #3730a3;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 9999px;
+    }
+
+    .badge-location {
+      background: #f1f5f9;
+      color: #475569;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 9999px;
+    }
+
+    .company-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .score-badge {
+      text-align: center;
+      padding: 8px 14px;
+      border-radius: 10px;
+      min-width: 64px;
+      flex-shrink: 0;
+    }
+
+    .score-high {
+      background: #ecfdf5;
+      border: 2px solid #10b981;
+      color: #059669;
+    }
+
+    .score-med {
+      background: #fefce8;
+      border: 2px solid #f59e0b;
+      color: #d97706;
+    }
+
+    .score-number {
+      font-size: 22px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .score-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 2px;
+    }
+
+    /* Content sections */
+    .why-box {
+      background: #f8fafc;
+      border-left: 3px solid #2563eb;
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-bottom: 14px;
+    }
+
+    .why-box strong {
+      color: #1e293b;
+      font-size: 13px;
+    }
+
+    .why-box p {
+      margin-top: 4px;
+      font-size: 13px;
+      color: #334155;
+      line-height: 1.5;
+    }
+
+    .skills-block {
+      margin-bottom: 14px;
+      font-size: 12.5px;
+      line-height: 1.6;
+    }
+
+    .skills-block strong {
+      font-weight: 600;
+    }
+
+    .cover-hook {
+      background: #fdf4ff;
+      border: 1px dashed #d946ef;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+
+    .cover-hook-header {
+      font-size: 12px;
+      font-weight: 700;
+      color: #86198f;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+
+    .cover-hook-body {
+      font-size: 13px;
+      color: #4a044e;
+      font-style: italic;
+      line-height: 1.45;
+    }
+
+    .card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 12px;
+      border-top: 1px solid #f1f5f9;
+    }
+
+    .posted-date {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    .apply-btn {
+      background: #2563eb;
+      color: #ffffff;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 18px;
+      border-radius: 6px;
+      transition: background 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .apply-btn:hover {
+      background: #1d4ed8;
+    }
+
+    /* Footer */
+    .digest-footer {
+      text-align: center;
+      margin-top: 36px;
+      padding: 20px;
+      font-size: 12px;
+      color: #94a3b8;
+      border-top: 1px solid #e2e8f0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Action Toolbar -->
+  <header class="top-toolbar">
+    <div class="brand">
+      <span>⚡ n8n Job Search Pipeline</span>
+      <span class="status-pill">Ready to Host</span>
+    </div>
+    <div class="toolbar-actions">
+      <a href="job_search_automation.json" download="job_search_automation.json" class="btn btn-secondary" id="btn-download-json">
+        📥 Download Workflow JSON
+      </a>
+      <a href="http://localhost:5678" target="_blank" class="btn btn-primary" id="btn-open-n8n">
+        🚀 Open Local n8n (Port 5678)
+      </a>
+    </div>
+  </header>
+
+  <div class="container">
+    
+    <!-- Header Banner -->
+    <div class="header-banner">
+      <h1>🚀 Daily Curated Job Digest</h1>
+      <p>Prepared for <strong>Nagendra M.P</strong> • 3 Matches Found Today • <strong>Minimum Match Score &ge; 65</strong></p>
+      
+      <div class="candidate-meta">
+        <span class="meta-chip">🎓 B.E. CS (2026, CGPA 8.17)</span>
+        <span class="meta-chip">💼 SysAdmin Intern @ DataCorp Traffic</span>
+        <span class="meta-chip">📍 Bengaluru / Remote</span>
+        <span class="meta-chip">🛠️ Linux, Docker, Python, AWS, CI/CD, Grafana</span>
+      </div>
+    </div>
+
+    <!-- Match Card 1: DevOps Engineer (Bengaluru) -->
+    <article class="job-card" id="job-card-1">
+      <div class="card-header">
+        <div>
+          <h2 class="job-title">
+            Associate DevOps Engineer
+            <span class="badge-location">Bengaluru (Hybrid)</span>
+          </h2>
+          <p class="company-sub">🏢 CloudScale Technologies &nbsp;•&nbsp; 📍 Bengaluru, India &nbsp;•&nbsp; 🔗 Himalayas</p>
+        </div>
+        <div class="score-badge score-high">
+          <div class="score-number">91</div>
+          <div class="score-label">Match</div>
+        </div>
+      </div>
+
+      <div class="why-box">
+        <strong>Why It Fits:</strong>
+        <p>Perfect match for Nagendra's Linux, Bash, and Docker skill set developed during his DataCorp Traffic internship. The role requires deploying CI/CD pipelines, containerizing Python/Node microservices, and monitoring with Grafana, aligning directly with his featured projects.</p>
+      </div>
+
+      <div class="skills-block">
+        <div style="color: #059669; margin-bottom: 3px;">
+          <strong>✅ Matched Skills:</strong> Linux, Docker, Bash Scripting, CI/CD (GitHub Actions), Python, AWS, Grafana
+        </div>
+        <div style="color: #dc2626;">
+          <strong>⚠️ Missing / To Learn:</strong> Kubernetes (EKS basics), Terraform
+        </div>
+      </div>
+
+      <div class="cover-hook">
+        <div class="cover-hook-header">💡 Recommended Cover Letter Hook</div>
+        <p class="cover-hook-body">
+          "As a Computer Science graduate with hands-on experience administering Linux servers at DataCorp Traffic Limited and architecting FastAPI monitoring pipelines connected to Grafana, I am excited to apply for the Associate DevOps Engineer position at CloudScale Technologies."
+        </p>
+      </div>
+
+      <div class="card-footer">
+        <span class="posted-date">Posted 1 day ago</span>
+        <a href="https://himalayas.app" target="_blank" class="apply-btn" id="apply-btn-1">Review & Apply ↗</a>
+      </div>
+    </article>
+
+    <!-- Match Card 2: SRE (Remote) -->
+    <article class="job-card" id="job-card-2">
+      <div class="card-header">
+        <div>
+          <h2 class="job-title">
+            Junior Site Reliability Engineer (SRE)
+            <span class="badge-remote">Remote</span>
+          </h2>
+          <p class="company-sub">🏢 Datadash Systems &nbsp;•&nbsp; 📍 Remote (India / Worldwide) &nbsp;•&nbsp; 🔗 Jobicy</p>
+        </div>
+        <div class="score-badge score-high">
+          <div class="score-number">84</div>
+          <div class="score-label">Match</div>
+        </div>
+      </div>
+
+      <div class="why-box">
+        <strong>Why It Fits:</strong>
+        <p>Emphasizes Linux server management, networking fundamentals (DNS, DHCP, TCP/IP), and uptime telemetry. Nagendra's background as a System Administrator Intern and his experience configuring alerting thresholds make him an immediate asset.</p>
+      </div>
+
+      <div class="skills-block">
+        <div style="color: #059669; margin-bottom: 3px;">
+          <strong>✅ Matched Skills:</strong> Linux OS, TCP/IP, DNS, System Monitoring, Bash, REST APIs, PostgreSQL
+        </div>
+        <div style="color: #dc2626;">
+          <strong>⚠️ Missing / To Learn:</strong> Prometheus querying (PromQL), OpenTelemetry
+        </div>
+      </div>
+
+      <div class="cover-hook">
+        <div class="cover-hook-header">💡 Recommended Cover Letter Hook</div>
+        <p class="cover-hook-body">
+          "My day-to-day work resolving network and OS anomalies as a System Administrator Intern, paired with my automated API monitoring projects, has built my core troubleshooting instincts for the Junior SRE role at Datadash Systems."
+        </p>
+      </div>
+
+      <div class="card-footer">
+        <span class="posted-date">Posted 2 days ago</span>
+        <a href="https://jobicy.com" target="_blank" class="apply-btn" id="apply-btn-2">Review & Apply ↗</a>
+      </div>
+    </article>
+
+    <!-- Match Card 3: Backend Python / Cloud -->
+    <article class="job-card" id="job-card-3">
+      <div class="card-header">
+        <div>
+          <h2 class="job-title">
+            Backend Cloud Developer (Python / FastAPI)
+            <span class="badge-location">Bengaluru (Onsite)</span>
+          </h2>
+          <p class="company-sub">🏢 NexaTech Solutions &nbsp;•&nbsp; 📍 Bengaluru, Karnataka &nbsp;•&nbsp; 🔗 Arbeitnow</p>
+        </div>
+        <div class="score-badge score-med">
+          <div class="score-number">76</div>
+          <div class="score-label">Match</div>
+        </div>
+      </div>
+
+      <div class="why-box">
+        <strong>Why It Fits:</strong>
+        <p>Heavy overlap with Nagendra's Python, FastAPI, and relational database (PostgreSQL/MySQL) proficiencies. Junior-friendly entry point transitioning into cloud-native backend systems.</p>
+      </div>
+
+      <div class="skills-block">
+        <div style="color: #059669; margin-bottom: 3px;">
+          <strong>✅ Matched Skills:</strong> Python, FastAPI, REST APIs, PostgreSQL, Docker, Git
+        </div>
+        <div style="color: #dc2626;">
+          <strong>⚠️ Missing / To Learn:</strong> Redis caching, Celery task queues
+        </div>
+      </div>
+
+      <div class="cover-hook">
+        <div class="cover-hook-header">💡 Recommended Cover Letter Hook</div>
+        <p class="cover-hook-body">
+          "Having built automated infrastructure monitoring backends with FastAPI and PostgreSQL, I bring hands-on API design and Linux deployment discipline to NexaTech's Backend team."
+        </p>
+      </div>
+
+      <div class="card-footer">
+        <span class="posted-date">Posted 3 days ago</span>
+        <a href="https://arbeitnow.com" target="_blank" class="apply-btn" id="apply-btn-3">Review & Apply ↗</a>
+      </div>
+    </article>
+
+    <!-- Footer -->
+    <footer class="digest-footer">
+      Automated via self-hosted n8n & Google Gemini (100% Free Tier). Safe Mode: No applications submitted automatically.<br>
+      Daily execution scheduled at 08:00 AM IST.
+    </footer>
+
+  </div>
+
+</body>
+</html>

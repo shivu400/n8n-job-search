@@ -1,0 +1,684 @@
+{
+  "name": "Automated Safe Job Search & AI Scoring System",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger-1",
+      "name": "Daily 8 AM IST Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "1R7wHsxoOi5bzz-9R4rxi8svgcM3DfsZj",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "google-drive-download",
+      "name": "Download Resume PDF",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        420,
+        300
+      ],
+      "credentials": {
+        "googleDriveOAuth2": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "Google Drive Account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "id": "extract-pdf-text",
+      "name": "Extract Text from PDF",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        640,
+        300
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={{ $vars.GEMINI_API_KEY || 'AIzaSyALkaOlceRlO3zqmcZSSN5B9PZeCFZEV5A' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  contents: [\n    {\n      parts: [\n        {\n          text: \"You are an expert technical recruiter and resume parser.\\nParse the following resume text into a concise, structured JSON object.\\n\\nResume Content:\\n\" + ($json.text || \"Nagendra M.P, B.E. Computer Science 2026, CGPA 8.17. System Administrator Intern at DataCorp Traffic Limited. Skills: Linux, Bash, Python, Docker, CI/CD, AWS, Grafana, Node.js, Express.js, FastAPI, MySQL, PostgreSQL, MongoDB, REST APIs, Networking.\") + \"\\n\\nReturn ONLY valid JSON matching this exact schema:\\n{\\n  \\\"candidate_name\\\": \\\"Nagendra M.P\\\",\\n  \\\"education\\\": \\\"B.E. Computer Science (2026), CGPA 8.17\\\",\\n  \\\"current_role\\\": \\\"System Administrator Intern at DataCorp Traffic Limited\\\",\\n  \\\"seniority_level\\\": \\\"Entry-Level / Junior\\\",\\n  \\\"primary_target_roles\\\": [\\\"DevOps Engineer\\\", \\\"Site Reliability Engineer (SRE)\\\", \\\"Cloud Engineer\\\", \\\"Backend Developer\\\", \\\"MLOps Engineer\\\", \\\"AI Infrastructure Engineer\\\"],\\n  \\\"core_skills\\\": [\\\"Linux\\\", \\\"Bash\\\", \\\"Python\\\", \\\"Docker\\\", \\\"CI/CD\\\", \\\"AWS\\\", \\\"Grafana\\\", \\\"Node.js\\\", \\\"FastAPI\\\", \\\"REST APIs\\\", \\\"PostgreSQL\\\", \\\"MySQL\\\", \\\"MongoDB\\\", \\\"Networking\\\"],\\n  \\\"projects_summary\\\": \\\"API & Infrastructure Monitoring System (Python, FastAPI, Grafana)\\\",\\n  \\\"search_keywords\\\": [\\\"DevOps\\\", \\\"SRE\\\", \\\"Cloud\\\", \\\"Site Reliability\\\", \\\"Backend Python\\\", \\\"Backend Node\\\", \\\"Docker\\\", \\\"Linux Admin\\\", \\\"Junior Cloud Engineer\\\"]\\n}\"\n        }\n      ]\n    }\n  ],\n  generationConfig: {\n    temperature: 0.1,\n    responseMimeType: \"application/json\"\n  }\n}) }}",
+        "options": {}
+      },
+      "id": "gemini-parse-resume",
+      "name": "Gemini Parse Resume to JSON",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        860,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "jsCode": "let rawText = '';\ntry {\n  const candidates = $input.first().json.candidates;\n  rawText = candidates[0].content.parts[0].text;\n} catch (e) {\n  rawText = '{}';\n}\n\nlet parsedResume;\ntry {\n  parsedResume = JSON.parse(rawText);\n} catch (e) {\n  parsedResume = {\n    candidate_name: \"Nagendra M.P\",\n    education: \"B.E. Computer Science 2026, CGPA 8.17\",\n    current_role: \"System Administrator Intern at DataCorp Traffic Limited\",\n    seniority_level: \"Entry-Level / Junior\",\n    primary_target_roles: [\"DevOps Engineer\", \"Site Reliability Engineer (SRE)\", \"Cloud Engineer\", \"Backend Developer\", \"MLOps Engineer\"],\n    core_skills: [\"Linux\", \"Bash\", \"Python\", \"Docker\", \"CI/CD\", \"AWS\", \"Grafana\", \"Node.js\", \"FastAPI\", \"MySQL\", \"PostgreSQL\", \"MongoDB\"],\n    search_keywords: [\"DevOps\", \"SRE\", \"Cloud\", \"Backend\", \"Python\", \"Docker\", \"Linux\"]\n  };\n}\n\nreturn [{ json: { candidateProfile: parsedResume } }];"
+      },
+      "id": "format-candidate-profile",
+      "name": "Format Candidate Profile",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://himalayas.app/jobs/api?limit=40",
+        "options": {}
+      },
+      "id": "fetch-himalayas-jobs",
+      "name": "Fetch Himalayas Jobs (Free API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        140
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "https://jobicy.com/api/v2/remote-jobs?count=40&industry=dev",
+        "options": {}
+      },
+      "id": "fetch-jobicy-dev-jobs",
+      "name": "Fetch Jobicy Dev Jobs (Free API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        300
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "https://www.arbeitnow.com/api/job-board-api",
+        "options": {}
+      },
+      "id": "fetch-arbeitnow-jobs",
+      "name": "Fetch Arbeitnow Jobs (Free API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        460
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const candidateProfile = $('Format Candidate Profile').first().json.candidateProfile;\nconst normalizedJobs = [];\n\n// Target role keywords to filter noise early\nconst targetKeywords = ['devops', 'sre', 'reliability', 'cloud', 'infrastructure', 'backend', 'python', 'node', 'mlops', 'systems', 'platform'];\n\nfunction matchesTargetRole(title, desc) {\n  const combined = (title + ' ' + (desc || '')).toLowerCase();\n  return targetKeywords.some(keyword => combined.includes(keyword));\n}\n\n// 1. Himalayas API parser\ntry {\n  const himalayasData = $('Fetch Himalayas Jobs (Free API)').first().json;\n  const jobs = himalayasData.jobs || [];\n  for (const job of jobs) {\n    const title = job.title || '';\n    const desc = (job.description || '').replace(/<[^>]*>?/gm, ' ');\n    if (matchesTargetRole(title, desc)) {\n      normalizedJobs.push({\n        title: title,\n        company: job.companyName || 'Unknown Company',\n        location: job.locationRestrictions && job.locationRestrictions.length > 0 ? job.locationRestrictions.join(', ') : 'Worldwide / Remote',\n        remote: true,\n        url: job.applicationUrl || `https://himalayas.app/companies/${job.companySlug}/jobs/${job.slug}`,\n        description: desc.slice(0, 2500),\n        posted_date: job.pubDate ? new Date(job.pubDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],\n        source: 'Himalayas'\n      });\n    }\n  }\n} catch (e) {}\n\n// 2. Jobicy API parser\ntry {\n  const jobicyData = $('Fetch Jobicy Dev Jobs (Free API)').first().json;\n  const jobs = jobicyData.jobs || [];\n  for (const job of jobs) {\n    const title = job.jobTitle || '';\n    const desc = (job.jobDescription || '').replace(/<[^>]*>?/gm, ' ');\n    if (matchesTargetRole(title, desc)) {\n      normalizedJobs.push({\n        title: title,\n        company: job.companyName || 'Unknown Company',\n        location: job.jobGeo || 'Remote',\n        remote: true,\n        url: job.url || '',\n        description: desc.slice(0, 2500),\n        posted_date: job.pubDate ? new Date(job.pubDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],\n        source: 'Jobicy'\n      });\n    }\n  }\n} catch (e) {}\n\n// 3. Arbeitnow API parser\ntry {\n  const arbeitnowData = $('Fetch Arbeitnow Jobs (Free API)').first().json;\n  const jobs = arbeitnowData.data || [];\n  for (const job of jobs) {\n    const title = job.title || '';\n    const desc = (job.description || '').replace(/<[^>]*>?/gm, ' ');\n    if (matchesTargetRole(title, desc)) {\n      normalizedJobs.push({\n        title: title,\n        company: job.company_name || 'Unknown Company',\n        location: job.location || (job.remote ? 'Remote' : 'Bengaluru / Hybrid'),\n        remote: Boolean(job.remote),\n        url: job.url || '',\n        description: desc.slice(0, 2500),\n        posted_date: job.created_at ? new Date(job.created_at * 1000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],\n        source: 'Arbeitnow'\n      });\n    }\n  }\n} catch (e) {}\n\n// Deduplicate inside current run by URL\nconst uniqueInRun = [];\nconst seenUrls = new Set();\nfor (const job of normalizedJobs) {\n  if (job.url && !seenUrls.has(job.url)) {\n    seenUrls.add(job.url);\n    uniqueInRun.push(job);\n  }\n}\n\nreturn uniqueInRun.map(job => ({\n  json: {\n    ...job,\n    candidateProfile: candidateProfile\n  }\n}));"
+      },
+      "id": "normalize-aggregate-jobs",
+      "name": "Normalize & Aggregate Jobs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1580,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "1UmjI4LtWbrE4MaJG5yyAw2p5badwYDui7ojoBaZJP-s",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Job Search Tracker",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "read-existing-tracker-sheet",
+      "name": "Read Existing Tracker Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1800,
+        140
+      ],
+      "credentials": {
+        "googleSheetsOAuth2": {
+          "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets Account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "let existingUrls = new Set();\ntry {\n  const sheetRows = $('Read Existing Tracker Sheet').all();\n  for (const row of sheetRows) {\n    const url = row.json['Job URL'] || row.json.url || row.json['URL'];\n    if (url) {\n      existingUrls.add(url.trim().toLowerCase());\n    }\n  }\n} catch (e) {}\n\nconst currentJobs = $('Normalize & Aggregate Jobs').all();\nconst newUnseenJobs = [];\n\nfor (const item of currentJobs) {\n  const job = item.json;\n  const jobUrl = (job.url || '').trim().toLowerCase();\n  if (jobUrl && !existingUrls.has(jobUrl)) {\n    newUnseenJobs.push(job);\n  }\n}\n\n// Cap processing to avoid exceeding rate limits (process up to 25 fresh jobs per daily run)\nconst cappedNewJobs = newUnseenJobs.slice(0, 25);\n\nreturn cappedNewJobs.map(j => ({ json: j }));"
+      },
+      "id": "deduplicate-against-sheet",
+      "name": "Deduplicate Against Tracker",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2020,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "loop-over-unseen-jobs",
+      "name": "Loop Over New Jobs",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 2.5,
+        "unit": "seconds"
+      },
+      "id": "wait-gemini-rate-limit",
+      "name": "Wait (Stay Under 15 RPM Free Tier)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={{ $vars.GEMINI_API_KEY || 'AIzaSyALkaOlceRlO3zqmcZSSN5B9PZeCFZEV5A' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  contents: [\n    {\n      parts: [\n        {\n          text: \"You are an objective hiring manager and technical talent evaluator.\\n\\nEvaluate the candidate against the job description below.\\n\\nCANDIDATE RESUME PROFILE:\\n- Name: \" + ($json.candidateProfile?.candidate_name || 'Nagendra M.P') + \"\\n- Background: B.E. Computer Science (2026 Grad, CGPA 8.17), System Administrator Intern at DataCorp Traffic Limited\\n- Target Roles: DevOps Engineer, SRE, Cloud Engineer, Backend Developer (Python/Node.js), MLOps Engineer, AI Infrastructure Engineer\\n- Core Skills: Linux, Bash, Python, Docker, CI/CD, AWS, Grafana, Node.js, Express.js, FastAPI, MySQL, PostgreSQL, MongoDB, REST APIs, TCP/IP, DNS, DHCP, Infrastructure Monitoring, Automation\\n- Projects: API & Infrastructure Monitoring System (Python, FastAPI, Grafana)\\n- Location Preference: Bengaluru, India (Hybrid/Onsite) OR Remote\\n\\nJOB LISTING TO EVALUATE:\\n- Title: \" + $json.title + \"\\n- Company: \" + $json.company + \"\\n- Location: \" + $json.location + \"\\n- Remote: \" + $json.remote + \"\\n- Job Description: \" + ($json.description || '') + \"\\n\\nEVALUATION INSTRUCTIONS:\\n1. Calculate a realistic match_score (integer between 1 and 100). Take seniority into account: if it strictly requires 5+ years or Staff/Lead level, penalize the score, but if it is Junior/Mid/Entry-level or skills overlap strongly (Linux, Docker, Python, AWS, CI/CD), score generously.\\n2. Identify matched_skills (array of skills the candidate definitely possesses).\\n3. Identify missing_skills (array of required skills the candidate does not list).\\n4. Write why_it_fits (2-3 concise sentences detailing why this role fits the candidate's career progression).\\n5. Write red_flags (any concerns such as heavy seniority gap, tech stack mismatch, or strict onsite outside Bengaluru).\\n6. Write suggested_cover_letter_opening (3-4 punchy, professional sentences tailored to this specific job that Nagendra can paste into an application).\\n\\nReturn ONLY a valid JSON object matching this schema:\\n{\\n  \\\"match_score\\\": 82,\\n  \\\"matched_skills\\\": [\\\"Linux\\\", \\\"Docker\\\", \\\"Python\\\", \\\"CI/CD\\\"],\\n  \\\"missing_skills\\\": [\\\"Kubernetes\\\", \\\"Terraform\\\"],\\n  \\\"why_it_fits\\\": \\\"Explanation...\\\",\\n  \\\"red_flags\\\": \\\"None / Explanation...\\\",\\n  \\\"suggested_cover_letter_opening\\\": \\\"Opening paragraph...\\\"\\n}\"\n        }\n      ]\n    }\n  ],\n  generationConfig: {\n    temperature: 0.2,\n    responseMimeType: \"application/json\"\n  }\n}) }}",
+        "options": {}
+      },
+      "id": "gemini-score-job",
+      "name": "Gemini Score Job Against Resume",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2680,
+        300
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nlet rawResponse = '';\ntry {\n  rawResponse = item.candidates[0].content.parts[0].text;\n} catch (e) {\n  rawResponse = '{}';\n}\n\nlet evaluation = {};\ntry {\n  evaluation = JSON.parse(rawResponse);\n} catch (e) {\n  evaluation = {\n    match_score: 50,\n    matched_skills: [],\n    missing_skills: [],\n    why_it_fits: 'AI response parsing failed.',\n    red_flags: 'Unable to parse evaluation',\n    suggested_cover_letter_opening: 'I am excited to apply for this position...'\n  };\n}\n\n// Pull original job data from the loop node\nconst jobData = $('Loop Over New Jobs').first().json;\n\nreturn [{\n  json: {\n    ...jobData,\n    match_score: parseInt(evaluation.match_score) || 0,\n    matched_skills: Array.isArray(evaluation.matched_skills) ? evaluation.matched_skills : [],\n    missing_skills: Array.isArray(evaluation.missing_skills) ? evaluation.missing_skills : [],\n    why_it_fits: evaluation.why_it_fits || '',\n    red_flags: evaluation.red_flags || 'None',\n    suggested_cover_letter_opening: evaluation.suggested_cover_letter_opening || ''\n  }\n}];"
+      },
+      "id": "parse-scoring-result",
+      "name": "Parse Scoring Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.match_score }}",
+              "operation": "largerEqual",
+              "value2": 65
+            }
+          ]
+        }
+      },
+      "id": "filter-minimum-score",
+      "name": "Match Score >= 65?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1UmjI4LtWbrE4MaJG5yyAw2p5badwYDui7ojoBaZJP-s",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Job Search Tracker",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date Found": "={{ new Date().toISOString().split('T')[0] }}",
+            "Job Title": "={{ $json.title }}",
+            "Company": "={{ $json.company }}",
+            "Location": "={{ $json.location }}",
+            "Remote": "={{ $json.remote ? 'Yes' : 'No' }}",
+            "Match Score": "={{ $json.match_score }}",
+            "Matched Skills": "={{ $json.matched_skills.join(', ') }}",
+            "Missing Skills": "={{ $json.missing_skills.join(', ') }}",
+            "Why It Fits": "={{ $json.why_it_fits }}",
+            "Red Flags": "={{ $json.red_flags }}",
+            "Suggested Opening": "={{ $json.suggested_cover_letter_opening }}",
+            "Job URL": "={{ $json.url }}",
+            "Source": "={{ $json.source }}",
+            "Status": "To Review"
+          }
+        },
+        "options": {}
+      },
+      "id": "append-to-google-sheets",
+      "name": "Log Job to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        3340,
+        220
+      ],
+      "credentials": {
+        "googleSheetsOAuth2": {
+          "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets Account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Collect evaluated job for the digest\nreturn [$input.first()];"
+      },
+      "id": "pass-to-loop-end",
+      "name": "Collector Pass-through",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3560,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Read all items collected across loop executions from Log Job to Google Sheets\nconst scoredItems = $('Append Job to Google Sheets').all();\n\nif (!scoredItems || scoredItems.length === 0) {\n  return [{\n    json: {\n      hasMatches: false,\n      jobsCount: 0,\n      htmlDigest: '<p style=\"font-family: Arial, sans-serif; color: #4a5568;\">No new jobs matching score >= 65 were found today. All seen jobs logged.</p>'\n    }\n  }];\n}\n\n// Sort by score descending and take top 15\nconst sorted = scoredItems.map(item => item.json)\n  .sort((a, b) => (parseInt(b['Match Score'] || b.match_score || 0)) - (parseInt(a['Match Score'] || a.match_score || 0)))\n  .slice(0, 15);\n\nconst todayStr = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' });\n\nlet cardsHtml = '';\nfor (const j of sorted) {\n  const score = parseInt(j['Match Score'] || j.match_score || 0);\n  const scoreColor = score >= 80 ? '#10b981' : (score >= 70 ? '#f59e0b' : '#3b82f6');\n  const title = j['Job Title'] || j.title || 'Untitled';\n  const company = j['Company'] || j.company || 'Unknown';\n  const loc = j['Location'] || j.location || 'Remote';\n  const remoteBadge = (j['Remote'] === 'Yes' || j.remote) ? '<span style=\"background:#e0e7ff;color:#3730a3;font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;margin-left:6px;\">Remote</span>' : '';\n  const url = j['Job URL'] || j.url || '#';\n  const source = j['Source'] || j.source || 'Direct';\n  const matched = j['Matched Skills'] || (Array.isArray(j.matched_skills) ? j.matched_skills.join(', ') : '');\n  const missing = j['Missing Skills'] || (Array.isArray(j.missing_skills) ? j.missing_skills.join(', ') : '');\n  const why = j['Why It Fits'] || j.why_it_fits || '';\n  const opening = j['Suggested Opening'] || j.suggested_cover_letter_opening || '';\n\n  cardsHtml += `\n  <div style=\"background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.04);\">\n    <div style=\"display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;\">\n      <div>\n        <h2 style=\"margin: 0 0 6px 0; font-size: 18px; color: #1e293b; font-weight: 700;\">${title} ${remoteBadge}</h2>\n        <p style=\"margin: 0; font-size: 14px; color: #64748b; font-weight: 500;\">🏢 ${company} &nbsp;•&nbsp; 📍 ${loc} &nbsp;•&nbsp; 🔗 ${source}</p>\n      </div>\n      <div style=\"text-align: center; background: ${scoreColor}15; border: 2px solid ${scoreColor}; border-radius: 10px; padding: 6px 14px; min-width: 60px;\">\n        <div style=\"font-size: 20px; font-weight: 800; color: ${scoreColor};\">${score}</div>\n        <div style=\"font-size: 10px; font-weight: 700; text-transform: uppercase; color: ${scoreColor}; letter-spacing: 0.5px;\">Match</div>\n      </div>\n    </div>\n\n    <div style=\"background: #f8fafc; border-left: 3px solid #3b82f6; padding: 10px 14px; border-radius: 4px; margin-bottom: 14px;\">\n      <strong style=\"color: #1e293b; font-size: 13px;\">Why It Fits:</strong>\n      <p style=\"margin: 4px 0 0 0; font-size: 13px; color: #334155; line-height: 1.5;\">${why}</p>\n    </div>\n\n    <div style=\"margin-bottom: 12px; font-size: 12px; line-height: 1.6;\">\n      <span style=\"color: #059669; font-weight: 600;\">✅ Matched Skills:</span> <span style=\"color: #334155;\">${matched || 'None noted'}</span><br/>\n      <span style=\"color: #dc2626; font-weight: 600;\">⚠️ Missing / To Learn:</span> <span style=\"color: #64748b;\">${missing || 'None'}</span>\n    </div>\n\n    ${opening ? `\n    <div style=\"background: #fdf4ff; border: 1px dashed #d946ef; padding: 10px 14px; border-radius: 6px; margin-bottom: 16px;\">\n      <strong style=\"color: #86198f; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;\">💡 Recommended Cover Letter Hook:</strong>\n      <p style=\"margin: 4px 0 0 0; font-size: 13px; color: #4a044e; font-style: italic; line-height: 1.4;\">\"${opening}\"</p>\n    </div>` : ''}\n\n    <div style=\"text-align: right; margin-top: 10px;\">\n      <a href=\"${url}\" target=\"_blank\" style=\"display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 600; padding: 8px 18px; border-radius: 6px;\">Review & Apply ↗</a>\n    </div>\n  </div>`;\n}\n\nconst fullHtml = `\n<!DOCTYPE html>\n<html>\n<head><meta charset=\"utf-8\"><title>Daily Job Digest</title></head>\n<body style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; margin: 0; padding: 24px;\">\n  <div style=\"max-width: 680px; margin: 0 auto;\">\n    <div style=\"background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); color: #ffffff; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);\">\n      <h1 style=\"margin: 0 0 6px 0; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;\">🚀 Daily Curated Job Digest</h1>\n      <p style=\"margin: 0; font-size: 14px; opacity: 0.9;\">Prepared for <strong>Nagendra M.P</strong> • ${todayStr} • <strong>${sorted.length} curated matches</strong> (Score &ge; 65)</p>\n    </div>\n    \n    ${cardsHtml}\n\n    <div style=\"text-align: center; padding: 20px; font-size: 12px; color: #94a3b8;\">\n      Automated via self-hosted n8n & Google Gemini (100% Free Tier). Safe Mode: No applications submitted automatically.\n    </div>\n  </div>\n</body>\n</html>`;\n\nreturn [{\n  json: {\n    hasMatches: true,\n    jobsCount: sorted.length,\n    htmlDigest: fullHtml\n  }\n}];"
+      },
+      "id": "build-html-digest",
+      "name": "Build HTML Digest Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2460,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "YOUR_GMAIL_ADDRESS@gmail.com",
+        "subject": "={{ '🎯 Daily Job Digest: ' + $json.jobsCount + ' High-Match Roles Found (' + new Date().toISOString().split('T')[0] + ')' }}",
+        "message": "={{ $json.htmlDigest }}",
+        "options": {}
+      },
+      "id": "send-gmail-digest",
+      "name": "Send Gmail Daily Digest",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2680,
+        540
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YOUR_GMAIL_CREDENTIAL_ID",
+          "name": "Gmail Account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "workflow-error-trigger",
+      "name": "Workflow Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        200,
+        740
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "YOUR_GMAIL_ADDRESS@gmail.com",
+        "subject": "⚠️ Alert: n8n Job Search Workflow Failed",
+        "message": "=<p>Your daily job search workflow encountered an error on <strong>{{ new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) }}</strong>.</p><p><strong>Node:</strong> {{ $json.execution?.error?.node?.name || 'Unknown' }}</p><p><strong>Error Message:</strong> {{ $json.execution?.error?.message || 'Check execution logs' }}</p>",
+        "options": {}
+      },
+      "id": "send-error-alert",
+      "name": "Send Failure Alert Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        420,
+        740
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YOUR_GMAIL_CREDENTIAL_ID",
+          "name": "Gmail Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily 8 AM IST Schedule": {
+      "main": [
+        [
+          {
+            "node": "Download Resume PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Resume PDF": {
+      "main": [
+        [
+          {
+            "node": "Extract Text from PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Text from PDF": {
+      "main": [
+        [
+          {
+            "node": "Gemini Parse Resume to JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Parse Resume to JSON": {
+      "main": [
+        [
+          {
+            "node": "Format Candidate Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Candidate Profile": {
+      "main": [
+        [
+          {
+            "node": "Fetch Himalayas Jobs (Free API)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Jobicy Dev Jobs (Free API)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Arbeitnow Jobs (Free API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Himalayas Jobs (Free API)": {
+      "main": [
+        [
+          {
+            "node": "Normalize & Aggregate Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Jobicy Dev Jobs (Free API)": {
+      "main": [
+        [
+          {
+            "node": "Normalize & Aggregate Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Arbeitnow Jobs (Free API)": {
+      "main": [
+        [
+          {
+            "node": "Normalize & Aggregate Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize & Aggregate Jobs": {
+      "main": [
+        [
+          {
+            "node": "Read Existing Tracker Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Existing Tracker Sheet": {
+      "main": [
+        [
+          {
+            "node": "Deduplicate Against Tracker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deduplicate Against Tracker": {
+      "main": [
+        [
+          {
+            "node": "Loop Over New Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over New Jobs": {
+      "main": [
+        [
+          {
+            "node": "Wait (Stay Under 15 RPM Free Tier)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build HTML Digest Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait (Stay Under 15 RPM Free Tier)": {
+      "main": [
+        [
+          {
+            "node": "Gemini Score Job Against Resume",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Score Job Against Resume": {
+      "main": [
+        [
+          {
+            "node": "Parse Scoring Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Scoring Result": {
+      "main": [
+        [
+          {
+            "node": "Match Score >= 65?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Score >= 65?": {
+      "main": [
+        [
+          {
+            "node": "Log Job to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Collector Pass-through",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Job to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Collector Pass-through",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collector Pass-through": {
+      "main": [
+        [
+          {
+            "node": "Loop Over New Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build HTML Digest Email": {
+      "main": [
+        [
+          {
+            "node": "Send Gmail Daily Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send Failure Alert Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Kolkata",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  }
+}

@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: nagendra-n8n
+    runtime: image
+    image:
+      url: docker.n8n.io/n8nio/n8n:latest
+    plan: free
+    region: singapore # Closest low-latency region to Bengaluru, India
+    envVars:
+      - key: N8N_PORT
+        value: 10000
+      - key: PORT
+        value: 10000
+      - key: N8N_PROTOCOL
+        value: https
+      - key: NODE_ENV
+        value: production
+      - key: GENERIC_TIMEZONE
+        value: Asia/Kolkata
+      - key: TZ
+        value: Asia/Kolkata
+      - key: N8N_DEFAULT_BINARY_DATA_MODE
+        value: filesystem

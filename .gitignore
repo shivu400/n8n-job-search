@@ -1,0 +1,5 @@
+# Ignore local sensitive files
+.env
+n8n_data/
+node_modules/
+*.log
